@@ -1,8 +1,8 @@
 -- Rewrite of C++ version using Motorola_Proms
 -- Author    : David Haley
 -- Created   : 20/01/2023
--- Last Edit : 23/01/2023
--- 20230123 : Report multiple errors in files to be compared.
+-- Last Edit : 24/01/2023
+-- 20230124 : Report multiple errors in files to be compared.
 
 with Ada.Command_Line; use Ada.Command_Line;
 with Ada.Text_IO; use Ada.Text_IO;
@@ -62,7 +62,7 @@ procedure Comphexm is
    Answer : Character := 'Y';
 
 begin -- Comphexm
-   Put_Line ("CompHexM version 20230123");
+   Put_Line ("CompHexM version 20230124");
    if Argument_Count /= 2 then
       Put_Line ("Usage CompHexM Hex_File_Name_1 Hex_File_Name_2");
    else

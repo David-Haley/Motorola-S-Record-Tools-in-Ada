@@ -1,8 +1,8 @@
 -- Tool for displaying the contents of Motorola S record files
 -- Author    : David Haley
 -- Created   : 21/01/2023
--- Last Edit : 23/01/2023
--- 20230132 : Correction to allow multiple errors in the one hex file to be
+-- Last Edit : 24/01/2023
+-- 20230124 : Correction to allow multiple errors in the one hex file to be
 -- Reported.
 
 with Ada.Command_Line; use Ada.Command_Line;
@@ -34,7 +34,7 @@ procedure DisplayHexM is
    Finished, Resuming : Boolean := False;
 
 begin -- DisplayHexM
-   Put_Line ("DisplayHexM version 20230123");
+   Put_Line ("DisplayHexM version 20230124");
    if Argument_Count = 0 then
       Put_Line ("Usage DisplayHexM Hex_File_Name");
    else
