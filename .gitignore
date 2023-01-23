@@ -1,0 +1,5 @@
+# Object file directory
+obj/
+
+# Project file
+*.xml
