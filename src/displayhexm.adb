@@ -1,7 +1,8 @@
 -- Tool for displaying the contents of Motorola S record files
 -- Author    : David Haley
 -- Created   : 21/01/2023
--- Last Edit : 24/01/2023
+-- Last Edit : 27/01/2023
+-- 20230127 : Display Motorola_Proms library version.
 -- 20230124 : Correction to allow multiple errors in the one hex file to be
 -- Reported.
 
@@ -34,7 +35,8 @@ procedure DisplayHexM is
    Finished, Resuming : Boolean := False;
 
 begin -- DisplayHexM
-   Put_Line ("DisplayHexM version 20230124");
+   Put_Line ("DisplayHexM version 20230127");
+   Put_Line ("Motorola_Proms library version " & Motorola_Proms'Body_Version);
    if Argument_Count = 0 then
       Put_Line ("Usage DisplayHexM Hex_File_Name");
    else

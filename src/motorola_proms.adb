@@ -29,6 +29,7 @@
 --            provision for S0 write; Provision for Setting and reading entry
 --            address and extension to the full extended exorciser range.
 -- 24/01/2023 Simplified reading of Strings.
+-- 27/01/2023 Corrected various error messages.
 
 with Ada.Exceptions; use Ada.Exceptions;
 with Ada.Strings; use Ada.Strings;
@@ -41,8 +42,8 @@ package body Motorola_Proms is
    Byte_Mask        : constant Prom_Addresses := 16#00_00FF#;
    Bytes_Per_Record : constant Prom_Addresses := 16#20#;
 
-   subtype Record_Types is Character with
-        Static_Predicate => Record_Types in '0' | '1' | '2' | '8' | '9';
+   subtype Record_Types is Natural with
+        Static_Predicate => Record_Types in 0 | 1 | 2 | 8 | 9;
 
    Char_per_Byte : constant := 2;
    
@@ -105,45 +106,49 @@ package body Motorola_Proms is
       exception
          when others =>
             raise Hex_Error
-              with """" & Number_String & """" &
-              "not a valid hexidecimal number";
+              with """" & Number_String & """ not a valid hexidecimal number";
       end Hex_To_Natural;
 
-      procedure Check_Start_Of_Record
-        (S_Record : in Unbounded_String; Start_At : in out Positive)
-      is
+      procedure Check_Start_Of_Record (S_Record : in Unbounded_String;
+                                       Start_At : in out Positive) is
 
       begin -- Check_Start_Of_Record
          if Start_At > Length (S_Record) then
             raise Unexpected_EOL
-              with "Expected ""S"" and found end of line, at line";
+              with "Expected ""S"" and found end of line";
          end if; -- Start_At > Length (S_Record)
          if Element (S_Record, Start_At) /= 'S' and
            Element (S_Record, Start_At) /= 's'
          then
             raise Bad_Start_Of_Record
-              with "Expected ""S"" and found " & Element (S_Record, Start_At);
+              with "Expected 'S' and found '" & Element (S_Record, Start_At) &
+            "'";
          end if; --  Element (S_Record, Start_at) /= 'S' and
          Start_At := Start_At + 1;
       end Check_Start_Of_Record;
 
       procedure Get_Record_Type (S_Record : in Unbounded_String;
                                  Start_At : in out Positive;
-                                 Record_Type : out Character;
+                                 Record_Type : out Record_Types;
                                  End_Record_Found : out Boolean) is
 
       begin -- Get_Record_Type is
-         if Start_At > Length (S_Record) then
+         -- This may appear clumsy but the Static_Predicate was not causing
+         -- an exception to be raised on conversion to Record_Types.
+         if Natural'Value (Slice (S_Record, Start_At, Start_At)) in
+           Record_Types then
+            Record_Type := Record_Types'Value (Slice (S_Record, Start_At,
+                                               Start_At));
+         else
+            raise Bad_Record_Type with
+              "Expected 0, 1, 2, 8 or 9 and found '" &
+              Element (S_Record, Start_AT) & "'";
+         end if; -- Natural'Value (Slice (S_Record, Start_At, Start_At)) in
+         End_Record_Found := Record_Type = 8 or Record_Type = 9;
+         Start_At := Start_At + 1;
+      exception
+         when Index_Error =>
             raise Unexpected_EOL with "End of line before record type";
-         end if; -- Start_At > Length (S_Record)
-         begin -- Record_Type exception block
-            Record_Type := Element (S_Record, Start_At);
-         exception
-            when others =>
-               raise Bad_Record_Type with "Expected 0, 1, 2, 8 or 9";
-         end; -- Record_Type exception block
-         End_Record_Found := Record_Type = '8' or Record_Type = '9';
-         Start_At         := Start_At + 1;
       end Get_Record_Type;
 
       procedure Get_Byte_Count (S_Record : in Unbounded_String;
@@ -157,9 +162,9 @@ package body Motorola_Proms is
                 (Slice (S_Record, Start_At, Start_At + Char_per_Byte - 1)));
          Start_At := Start_At + Char_per_Byte;
       exception
-         when Ee : Index_Error =>
+         when Index_Error =>
             raise Unexpected_EOL
-              with "End of line before byte count " & Exception_Message (Ee);
+              with "End of line before byte count";
          when E : Hex_Error =>
             raise Hex_Error with "Bad byte count " & Exception_Message (E);
       end Get_Byte_Count;
@@ -175,7 +180,7 @@ package body Motorola_Proms is
 
       begin -- Get_Address
          case Record_Type is
-            when '0' | '1' | '9' => -- four hex digit address
+            when 0 | 1 | 9 => -- four hex digit address
                Offset := Prom_Addresses (Hex_To_Natural (Slice (S_Record,
                                          Start_At, Start_At +
                                            Short_Address_Length - 1)));
@@ -183,7 +188,7 @@ package body Motorola_Proms is
                  Short_Address_Bytes - 1;
                -- reduced by address and checksum
                Start_At := Start_At + Short_Address_Length;
-            when '2' | '8' => -- six hex digit address
+            when 2 | 8 => -- six hex digit address
                Record_Format := Extended_Exorcisor;
                Offset := Prom_Addresses (Hex_To_Natural (Slice (S_Record,
                                          Start_At, Start_At +
@@ -194,7 +199,7 @@ package body Motorola_Proms is
                Start_At := Start_At + Long_Address_Length;
          end case;  -- Record_Type
          Record_Check_Sum := Record_Check_Sum + Address_Checksum (Offset);
-         if (Record_Type = '1' or Record_Type = '2') then
+         if Record_Type = 1 or Record_Type = 2 then
             if Offset < Low then
                Low := Offset;
             end if; -- Offset < Low
@@ -203,14 +208,14 @@ package body Motorola_Proms is
             then
                High := Offset + Prom_Addresses (Number_Of_Record_Bytes) - 1;
             end if; -- Number_Of_Record_Bytes > 0 and
-         end if; -- (Record_Type = '1' or  Record_Type = '2')
-         if Record_Type = '8' or Record_Type = '9' then
+         end if; -- Record_Type = 1 or Record_Type = 2
+         if Record_Type = 8 or Record_Type = 9 then
             Entry_Address := Offset;
-         end if; -- Record_Type = '8' or Record_Type = '9'
+         end if; -- Record_Type = 8 or Record_Type = 9
       exception
-         when Ee : Index_Error =>
+         when Index_Error =>
             raise Unexpected_EOL
-              with "End of line before address" & Exception_Message (Ee);
+              with "End of line before address";
          when E : Hex_Error =>
             raise Hex_Error with "Bad address " & Exception_Message (E);
       end Get_Address;
@@ -234,9 +239,9 @@ package body Motorola_Proms is
             Start_At := Start_At + Char_per_Byte;
          end loop; -- for I in Natural range 1 .. Number_Of_Record_Bytes
       exception
-         when Ee : Index_Error =>
+         when Index_Error =>
             raise Unexpected_EOL
-              with "End of line reading data bytes" & Exception_Message (Ee);
+              with "Unexpected end of line reading data bytes";
          when E : Hex_Error =>
             raise Hex_Error with "Bad data " & Exception_Message (E);
       end Get_Data_Bytes;
@@ -269,9 +274,9 @@ package body Motorola_Proms is
             Start_At := Start_At + Char_per_Byte;
          end loop; -- C in Natural range 1 .. Natural (Number_Of_Record_Bytes)
       exception
-         when Ee : Index_Error =>
+         when Index_Error =>
             raise Unexpected_EOL
-              with "End of line reading header " & Exception_Message (Ee);
+              with "Unexpected end of line reading header";
          when E : Hex_Error =>
             raise Hex_Error with "Bad header " & Exception_Message (E);
       end Get_Header;
@@ -295,27 +300,26 @@ package body Motorola_Proms is
          end if; -- File_Check_Sum /= not Check_Sum
          Start_At := Start_At + Char_per_Byte;
       exception
-         when Ee : Index_Error =>
-            raise Unexpected_EOL  with "End of line before checksum " &
-              Exception_Message (Ee);
+         when Index_Error =>
+            raise Unexpected_EOL with "End of line before checksum";
          when E : Hex_Error =>
             raise Hex_Error with "Bad checksum " & Exception_Message (E);
       end Verify_Checksum;
 
-      Record_Type            : Record_Types;
+      Record_Type : Record_Types;
       Number_Of_Record_Bytes : Byte;
-      Offset                 : Prom_Addresses;
-      Record_Check_Sum       : Byte; -- Checksum for each record
-      Input_File             : File_Type renames Prom.Input_Access.all;
-      S_Record               : Unbounded_String;
-      Start_At               : Positive;
+      Offset : Prom_Addresses;
+      Record_Check_Sum : Byte; -- Checksum for each record
+      Input_File : File_Type renames Prom.Input_Access.all;
+      S_Record : Unbounded_String;
+      Start_At : Positive;
       Line_Number : Positive_Count;
 
    begin -- Resume_Create
       if not Prom.End_Record_Found then
          Line_Number := Line (Input_File);
          Get_Line (Input_File, S_Record);
-         Start_At      := 1;
+         Start_At := 1;
          Prom.Resuming := True;
       end if; -- not Prom.End_Record_Found
       while not Prom.End_Record_Found loop
@@ -328,23 +332,23 @@ package body Motorola_Proms is
            (S_Record, Start_At, Offset, Record_Type, Number_Of_Record_Bytes,
             Record_Check_Sum, Prom.Low, Prom.High, Prom.Entry_Address,
             Prom.Record_Format);
-         if Record_Type = '0' then
+         if Record_Type = 0 then
             Get_Header
               (S_Record, Start_At, Offset, Number_Of_Record_Bytes,
                Record_Check_Sum, Prom.Header);
-         elsif Record_Type = '1' or Record_Type = '2' then
+         elsif Record_Type = 1 or Record_Type = 2 then
             Get_Data_Bytes
               (S_Record, Start_At, Prom.Data, Offset, Number_Of_Record_Bytes,
                Record_Check_Sum);
             Prom.File_Read_Check_Sum :=
               Prom.File_Read_Check_Sum + Check_Sums (Record_Check_Sum);
-         end if; -- Record_Type = '0'
+         end if; -- Record_Type = 0
          Verify_Checksum (S_Record, Start_At, Record_Check_Sum);
          if Start_At <= Length (S_Record) then
             raise Unexpected_Characters
               with "Unexpected characters """ &
               Slice (S_Record, Start_At, Length (S_Record)) &
-              """ at end of line " & Line_Number'Img;
+              """ at end of line";
          end if; -- Start_At <= Length (S_Record)
          if not Prom.End_Record_Found then
             Line_Number := Line (Input_File);
@@ -353,13 +357,12 @@ package body Motorola_Proms is
          end if; -- not Prom.End_Record_Found
       end loop; -- not Prom.End_Record_Found
    exception
-      when Ee : End_Error =>
+      when End_Error =>
          raise Unexpected_EOF
-           with "End of file before end record " & Exception_Message (Ee);
+           with "End of file before end record";
       when E : others =>
-         Raise_Exception
-           (Exception_Identity (E),
-            Exception_Message (E) & " at line " & Line_Number'Img);
+         Raise_Exception (Exception_Identity (E),
+            Exception_Message (E) & ", at line" & Line_Number'Img);
    end Resume_Create;
 
    procedure Write_Data (Prom : in out Proms;
@@ -618,7 +621,7 @@ package body Motorola_Proms is
       for Address in Prom_Addresses range Prom.Low .. Prom.High loop
          Data_Limits_Check_Sum :=
            Data_Limits_Check_Sum + Check_Sums (Prom.Data (Address));
-      end loop; -- for Address in Prom_Addresses range Prom.Low .. Prom.High loop
+      end loop; -- for Address in Prom_Addresses range Prom.Low ...
       return Data_Limits_Check_Sum;
    end Limit_Check_Sum;
 

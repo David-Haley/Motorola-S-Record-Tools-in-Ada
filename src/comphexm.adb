@@ -1,7 +1,9 @@
 -- Rewrite of C++ version using Motorola_Proms
 -- Author    : David Haley
 -- Created   : 20/01/2023
--- Last Edit : 24/01/2023
+-- Last Edit : 27/01/2023
+-- 20230127 : Display Motorola_Proms library version and display full width of
+-- Checksum.
 -- 20230124 : Report multiple errors in files to be compared.
 
 with Ada.Command_Line; use Ada.Command_Line;
@@ -62,7 +64,8 @@ procedure Comphexm is
    Answer : Character := 'Y';
 
 begin -- Comphexm
-   Put_Line ("CompHexM version 20230124");
+   Put_Line ("CompHexM version 20230127");
+   Put_Line ("Motorola_Proms library version " & Motorola_Proms'Body_Version);
    if Argument_Count /= 2 then
       Put_Line ("Usage CompHexM Hex_File_Name_1 Hex_File_Name_2");
    else
@@ -83,10 +86,10 @@ begin -- Comphexm
       Put (Get_Device_Upper_Bound (Prom_1));
       New_Line;
       Put ("Checksum for the above limits: ");
-      Put (Limit_Check_Sum (Prom_1), 4);
+      Put (Limit_Check_Sum (Prom_1));
       New_Line;
       Put ("Entry address: ");
-      Put (Get_Entry_Address (Prom_1), 6);
+      Put (Get_Entry_Address (Prom_1));
       New_Line;
       New_Line;
       -- Reading Prom_2 and reporting details
@@ -105,10 +108,10 @@ begin -- Comphexm
       Put (Get_Device_Upper_Bound (Prom_2));
       New_Line;
       Put ("Checksum for the above limits: ");
-      Put (Limit_Check_Sum (Prom_2), 4);
+      Put (Limit_Check_Sum (Prom_2));
       New_Line;
       Put ("Entry address: ");
-      Put (Get_Entry_Address (Prom_2), 6);
+      Put (Get_Entry_Address (Prom_2));
       New_Line;
       Low := Prom_Addresses'Min (Get_Device_Lower_Bound (Prom_1),
                                  Get_Device_Lower_Bound (Prom_2));
